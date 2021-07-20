@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import personService from './services/persons'
+import './index.css'
 
 
 const Filter = ({searchName, handleSearchName}) => {
@@ -53,6 +54,7 @@ const App = () => {
   const [ newName, setNewName ] = useState('')
   const [ newNumber, setNewNumber ] = useState('')
   const [ searchName, setSearchName ] = useState('')
+  const [ message, setMessage ] = useState({type: '', display: null})
 
   useEffect(() => {
     personService
@@ -70,6 +72,10 @@ const App = () => {
       if (window.confirm(`${newName} id already added to the phonebook, replace the old number with the new one?`)) {
         const id = persons.find(person => person.name === newName).id
         editNumber(id)
+        setMessage({type: 'success', display: `${newName} edited`})
+          setTimeout(() => {
+            setMessage({type: '', display: null})
+          }, 4000)
       } else return
     }
     else {
@@ -85,6 +91,10 @@ const App = () => {
           setPersons(persons.concat(response.data))
           setNewName('')
           setNewNumber('')
+          setMessage({type: 'success', display: `${newName} added`})
+          setTimeout(() => {
+            setMessage({type: '', display: null})
+          }, 4000)
         })
 
     }
@@ -113,7 +123,31 @@ const App = () => {
         const obj = persons.filter(person => person.id !== id).concat(response.data)
         setPersons(obj)
       })
+      .catch(error => {
+        setMessage({type: 'error', display: `${newName} has already been removed`})
+        setTimeout(() => {
+          setMessage({type: '', display: null})
+        }, 4000)
+      })
   }
+
+  const Notification = ({message}) => {
+    if (message.display === null) {
+      return null
+    } else if (message.type === 'error') {
+      return (
+        <div className='error'>
+          {message.display}
+        </div>
+      )
+    }
+    return (
+      <div className='success'>
+        {message.display}
+      </div>
+    )
+  }
+
 
   const handleNameChange = (e) => setNewName(e.target.value)
   const handleNumberChange = (e) => setNewNumber(e.target.value)
@@ -122,6 +156,7 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={message}/>
       <Filter searchName={searchName} handleSearchName={handleSearchName} />
       <h2>add a new</h2>
       <PersonForm 
