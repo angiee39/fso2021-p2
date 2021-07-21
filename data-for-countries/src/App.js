@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import axios from 'axios';
 
-// const weatherAPI = '8c4b588b4d9ddb4f27105980d2d1085d'
 const api_key = process.env.REACT_APP_API_KEY
 
 const Filter = ({searchName, handleSearchName}) => {
+
   return (
     <div>
       find countries <input autoFocus='on' value={searchName} onChange={handleSearchName}/>
@@ -12,120 +12,143 @@ const Filter = ({searchName, handleSearchName}) => {
   )
 }
 
-const Countries = ({showCountries, searchName, buttonClick, handleButtonClick, weather, city, setCity}) => {
-  const countriesToShow = searchName === ''
-    ? showCountries
-    : showCountries.filter(country => country.name.toLowerCase().includes(searchName.toLowerCase()));
+const Content = ({countriesToShow, handleShowButton, weather, setWeatherCity}) => {
 
- 
-  const countryInfo = (index) => {
-    const country = countriesToShow[index]
-    const location = country.capital
-    setCity(location)
-    console.log('countryInfo', city)
-
+  if (countriesToShow.length > 1 && countriesToShow.length < 10 ) {
+    return (
+      <CountryList 
+        countriesToShow={countriesToShow} 
+        handleShowButton={handleShowButton} 
+      />
+    )
+  } else if (countriesToShow.length === 1) {
     return (
       <div>
-        <h2>{country.name}</h2>
-        <p>Capital: {country.capital}</p>
-        <p>Population: {country.population}</p>
-        <h3>Languages</h3>
-        <div>
-          {country.languages.map((language) => 
-            <li key={language.name}>
-              {language.name}
-            </li>
-          )}
-        </div>
-        <br />
-        <div>
-          <img src={country.flag} alt='country flag' width='100'/>
-        </div>
-        <h3>Weather in {weather.location.name}</h3>
-        <p><b>temperature:</b> {weather.current.temperature} Celcius</p>
-        <img src={weather.current.weather_icons} alt=""/>
-        <p><b>wind:</b> {weather.current.wind_speed} mph direction {weather.current.wind_dir}</p>
-        
+        <CountryInfo 
+          countriesToShow={countriesToShow}
+          setWeatherCity={setWeatherCity} 
+        />
+        <Weather 
+          weather={weather}
+        />
       </div>
     )
-  }
+  } else return <p>type to show results</p>
 
-  if (countriesToShow.length === 1) {
-    return countryInfo(0)
+}
 
-  } else if (buttonClick.value === true) {
-    
-    const index = countriesToShow.findIndex(country => country.name === buttonClick.country)
-    return countryInfo(index)
+const CountryList = ({countriesToShow, handleShowButton}) => {
+  return (
+    <div>
+      {countriesToShow.map((country) =>
+        <div key={country.name} >
+          {country.name} <button value={country.name} onClick={handleShowButton}>show</button>
+        </div>  
+      )}
+    </div>
+  )
+}
 
-  } else if (countriesToShow.length > 0 && countriesToShow.length < 10) {
-    return (
+const CountryInfo = ({countriesToShow, setWeatherCity}) => {
+  const country = countriesToShow[0]
+  // setWeatherCity(country.capital)
+  return (
+    <div>
+      <h2>{country.name}</h2>
+      <p>capital: {country.capital}</p>
+      <p>population: {country.population}</p>
       <div>
-        {countriesToShow.map((country) => 
-          <div key={country.name}>
-            {country.name} <button onClick={handleButtonClick} >show</button>
-          </div>
+        {country.languages.map((language) => 
+          <li key={language.name}>
+            {language.name}
+          </li>
         )}
       </div>
-    )
-  } else {
-    return (
-      <p>too many matches, specify another filter</p>
-    )
-  }
+      <br />
+      <div>
+        <img src={country.flag} alt='country flag' width='100'/>
+      </div>
+    </div>
+  )
+
+}
+
+const Weather = ({weather}) => {
+  return (
+    <div>
+      <h3>Weather in {weather.location.name}</h3>
+      <p><b>temperature:</b> {weather.current.temperature} Celcius</p>
+      <img src={weather.current.weather_icons} alt=""/>
+      <p><b>wind:</b> {weather.current.wind_speed} mph direction {weather.current.wind_dir}</p>
+    </div>
+  )
+
 }
 
 function App() {
-  const [ showCountries, setShowCountries ] = useState([])
+
+  const [ countries, setCountries ] = useState([])
+  const [ countriesToShow, setCountriesToShow ] = useState([])
   const [ searchName, setSearchName ] = useState('')
+  const [ weatherCity, setWeatherCity ] = useState('germany')
   const [ weather, setWeather ] = useState({})
-  const [ buttonClick, setButtonClick] = useState({value:false, country:''})
-  const [ city, setCity ] = useState('New York')
 
   useEffect(() => {
     axios
       .get('https://restcountries.eu/rest/v2/all')
       .then(response => {
-        setShowCountries(response.data)
+        setCountries(response.data)
       })
   }, [])
 
   useEffect(() => {
-    const obj = {value: false, country: ''}
-    setButtonClick(obj)
-  }, [searchName])
+    const visibleCountries = searchName === ''
+        ? countries
+        : countries.filter(country => country.name.toLowerCase().includes(searchName.toLowerCase()));
+    
+    setCountriesToShow(visibleCountries)
+  }, [searchName, countries])
 
   useEffect(() => {
+    if (countriesToShow.length === 1) {
+      setWeatherCity(countriesToShow[0].capital)
+    }
+  }, [countriesToShow])
+  
+  useEffect(() => {
     axios
-      .get(`http://api.weatherstack.com/current?access_key=${api_key}&query=${city}`)
+      .get(`http://api.weatherstack.com/current?access_key=${api_key}&query=${weatherCity}`)
       .then(response => {
         setWeather(response.data)
+        console.log('called weather api')
       })
-  }, [city])
-
-
+  }, [weatherCity])
+  
   const handleSearchName = (e) => setSearchName(e.target.value)
-  const handleButtonClick = (e) => {
-    const country = e.target.previousSibling.wholeText.trim()
-    const obj = {value: true, country: country}
-    setButtonClick(obj)
+  const handleShowButton = (e) => {
+    const clickedCountry = countriesToShow.filter(country => country.name === e.target.value)
+    setCountriesToShow(clickedCountry)
   }
+
   return (
     <div>
-      <Filter searchName={searchName} 
+      <div>debug: {searchName}</div>
+      <div>weatherCity: {weatherCity}</div>
+      <Filter 
+        searchName={searchName} 
         handleSearchName={handleSearchName} 
       />
-      <Countries 
-        showCountries={showCountries} 
-        searchName={searchName}
+      <Content 
+        countriesToShow={countriesToShow}
+        setCountriesToShow={setCountriesToShow}
+        handleShowButton={handleShowButton}
         weather={weather}
-        buttonClick={buttonClick}
-        handleButtonClick={handleButtonClick}
-        city={city}
-        setCity={setCity}
+        weatherCity={weatherCity}
+        setWeatherCity={setWeatherCity}
       />
     </div>
-  );
+  )
 }
 
 export default App;
+
