@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from 'axios';
 
-const api_key = process.env.REACT_APP_API_KEY
-
-const Filter = ({searchName, handleSearchName}) => {
-
+const Filter = ({searchName, setSearchName}) => {
+  const handleSearchName = (e) => setSearchName(e.target.value)
   return (
     <div>
       find countries <input autoFocus='on' value={searchName} onChange={handleSearchName}/>
@@ -12,32 +10,26 @@ const Filter = ({searchName, handleSearchName}) => {
   )
 }
 
-const Content = ({countriesToShow, handleShowButton, weather, setWeatherCity}) => {
-
+const Content = ({countriesToShow, setCountriesToShow}) => {
   if (countriesToShow.length > 1 && countriesToShow.length < 10 ) {
     return (
       <CountryList 
-        countriesToShow={countriesToShow} 
-        handleShowButton={handleShowButton} 
+        countriesToShow={countriesToShow}
+        setCountriesToShow={setCountriesToShow}
       />
     )
   } else if (countriesToShow.length === 1) {
     return (
-      <div>
-        <CountryInfo 
-          countriesToShow={countriesToShow}
-          setWeatherCity={setWeatherCity} 
-        />
-        <Weather 
-          weather={weather}
-        />
-      </div>
+      <CountryInfo countriesToShow={countriesToShow}/>
     )
   } else return <p>type to show results</p>
-
 }
 
-const CountryList = ({countriesToShow, handleShowButton}) => {
+const CountryList = ({countriesToShow, setCountriesToShow}) => {
+  const handleShowButton = (e) => {
+    const clickedCountry = countriesToShow.filter(country => country.name === e.target.value)
+    setCountriesToShow(clickedCountry)
+  }
   return (
     <div>
       {countriesToShow.map((country) =>
@@ -49,9 +41,20 @@ const CountryList = ({countriesToShow, handleShowButton}) => {
   )
 }
 
-const CountryInfo = ({countriesToShow, setWeatherCity}) => {
+const CountryInfo = ({countriesToShow}) => {
+  const api_key = process.env.REACT_APP_API_KEY
   const country = countriesToShow[0]
-  // setWeatherCity(country.capital)
+  const [ weather, setWeather ] = useState(null)
+
+  useEffect(() => {
+    axios
+      .get(`http://api.weatherstack.com/current?access_key=${api_key}&query=${country.capital}`)
+      .then(response => {
+        setWeather(response.data)
+        console.log('called weather api')
+      })
+  }, [])
+
   return (
     <div>
       <h2>{country.name}</h2>
@@ -65,15 +68,14 @@ const CountryInfo = ({countriesToShow, setWeatherCity}) => {
         )}
       </div>
       <br />
-      <div>
-        <img src={country.flag} alt='country flag' width='100'/>
-      </div>
+      <img src={country.flag} alt='country flag' width='100'/>
+      <Weather weather={weather}/>
     </div>
   )
-
 }
 
 const Weather = ({weather}) => {
+  if (!weather) return null
   return (
     <div>
       <h3>Weather in {weather.location.name}</h3>
@@ -82,16 +84,12 @@ const Weather = ({weather}) => {
       <p><b>wind:</b> {weather.current.wind_speed} mph direction {weather.current.wind_dir}</p>
     </div>
   )
-
 }
 
 function App() {
-
   const [ countries, setCountries ] = useState([])
   const [ countriesToShow, setCountriesToShow ] = useState([])
-  const [ searchName, setSearchName ] = useState('')
-  const [ weatherCity, setWeatherCity ] = useState('germany')
-  const [ weather, setWeather ] = useState({})
+  const [ searchName, setSearchName ] = useState('')  
 
   useEffect(() => {
     axios
@@ -105,50 +103,21 @@ function App() {
     const visibleCountries = searchName === ''
         ? countries
         : countries.filter(country => country.name.toLowerCase().includes(searchName.toLowerCase()));
-    
     setCountriesToShow(visibleCountries)
   }, [searchName, countries])
-
-  useEffect(() => {
-    if (countriesToShow.length === 1) {
-      setWeatherCity(countriesToShow[0].capital)
-    }
-  }, [countriesToShow])
   
-  useEffect(() => {
-    axios
-      .get(`http://api.weatherstack.com/current?access_key=${api_key}&query=${weatherCity}`)
-      .then(response => {
-        setWeather(response.data)
-        console.log('called weather api')
-      })
-  }, [weatherCity])
-  
-  const handleSearchName = (e) => setSearchName(e.target.value)
-  const handleShowButton = (e) => {
-    const clickedCountry = countriesToShow.filter(country => country.name === e.target.value)
-    setCountriesToShow(clickedCountry)
-  }
-
   return (
     <div>
-      <div>debug: {searchName}</div>
-      <div>weatherCity: {weatherCity}</div>
       <Filter 
         searchName={searchName} 
-        handleSearchName={handleSearchName} 
+        setSearchName={setSearchName}
       />
       <Content 
         countriesToShow={countriesToShow}
         setCountriesToShow={setCountriesToShow}
-        handleShowButton={handleShowButton}
-        weather={weather}
-        weatherCity={weatherCity}
-        setWeatherCity={setWeatherCity}
       />
     </div>
   )
 }
 
 export default App;
-
